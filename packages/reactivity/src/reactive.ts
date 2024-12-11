@@ -9,6 +9,11 @@ const createReactiveObject = (target: any) => {
     return new Proxy(target, mutableHandlers);
 }
 
+// 转换响应式
+export const toReactive = (target: any) => {
+    return reactive(target);
+}
+
 export const reactive = (target: any) => {
 
     // 判断是否是对象
