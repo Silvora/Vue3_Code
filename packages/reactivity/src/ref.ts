@@ -6,8 +6,8 @@ import { createDep } from "./reactiveEffect";
 // 依赖收集
 export const trackRefValue = (ref:any) => {
     if (activeEffect) {
-        let dep = () => createDep(()=>(ref.dep = undefined),"undefined")
-        trackEffect(activeEffect, ref["dep"] = dep());
+        let dep = ref.dep || createDep(()=>(ref.dep = undefined),"undefined")
+        trackEffect(activeEffect, ref["dep"] = dep);
     }
 }
 

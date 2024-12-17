@@ -8,8 +8,8 @@
     "scripts": {
         "dev": "node scripts/dev.js reactivity -f esm",
         "app-reactivity": "pnpm run -F @my-vue/reactivity dev",
+        "app-runtime-dom": "pnpm run -F @my-vue/runtime-dom dev",
         "serve": "serve . "
-
     },
     "keywords": [],
     "author": "",

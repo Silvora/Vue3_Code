@@ -39,3 +39,7 @@ export const reactive = (target: any) => {
 
     return proxy;   
 }
+
+export const isReactive = (target: any) => {
+    return !!(target && target[ReactiveFlags.IS_REACTIVE]);
+}
