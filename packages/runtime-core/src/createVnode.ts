@@ -1,4 +1,5 @@
-import { isObject, isString, ShapeFlags } from "@my-vue/shared"
+import { isFunction, isObject, isString, ShapeFlags } from "@my-vue/shared"
+import { isTeleport } from "./teleport"
 
 export const isVnode = (vnode: any) => {
     return vnode.__v_isVNode
@@ -14,7 +15,10 @@ export const Fragment = Symbol('Fragment')
 
 
 export const createVNode = (type: any, props?: any, children?: any) => {
-    const shapeFlag = isString(type) ? ShapeFlags.ELEMENT : isObject(type) ? ShapeFlags.STATEFUL_COMPONENT : 0
+    const shapeFlag = isString(type) ? ShapeFlags.ELEMENT 
+    : isTeleport(type) ? ShapeFlags.TELEPORT
+    : isObject(type) ? ShapeFlags.STATEFUL_COMPONENT 
+    : isFunction(type) ? ShapeFlags.FUNCTIONAL_COMPONENT : 0
     const vnode = {
         __v_isVNode: true,
         type,
@@ -31,6 +35,10 @@ export const createVNode = (type: any, props?: any, children?: any) => {
             vnode.shapeFlag |= ShapeFlags.TEXT_CHILDREN
         } else if(Array.isArray(children)){
             vnode.shapeFlag |= ShapeFlags.ARRAY_CHILDREN
+        }else if(typeof children === 'object'){
+            if(children.__v_isVNode){
+                vnode.shapeFlag |= ShapeFlags.SLOT_CHILDREN
+            }
         }
     }
 

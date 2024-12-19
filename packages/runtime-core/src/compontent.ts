@@ -1,5 +1,9 @@
-import { reactive } from "@my-vue/reactivity";
-import { hasOwn, isFunction } from "@my-vue/shared";
+import { proxyRefs } from "@my-vue/reactivity";
+import { hasOwn, isFunction, ShapeFlags } from "@my-vue/shared";
+
+
+export let currentInstance:any = null;
+
 
 export const initProps = (instance:any, propsOptions:any) => {
     let props:any = {};
@@ -18,8 +22,19 @@ export const initProps = (instance:any, propsOptions:any) => {
     instance.attrs = attrs;
 }
 
+
+export const initSlots = (instance:any, children:any) => {
+    if(instance.vnode.shapeFlag & ShapeFlags.SLOT_CHILDREN) {
+        instance.slots = children
+    }else {
+        instance.slots = {}
+    }
+
+}
+
 export const publicProperty:any = {
-    $attrs: (instance:any) => instance.attrs
+    $attrs: (instance:any) => instance.attrs,
+    $slots: (instance:any) => instance.slots,
 }
 
 
@@ -27,15 +42,15 @@ export const instancePropsProxy = (instance:any) => {
     instance.proxy = new Proxy(instance, {
                 get(target, key:any) {
     
-                    const { state, props } = target;
+                    const { state, props, setupState } = target;
                     if(state && hasOwn(state, key)) {
                         return state[key];
                     }else if (props && hasOwn(props, key)) {
                         return props[key];
+                    }else if (setupState && hasOwn(setupState, key)) {
+                        return setupState[key];
                     }
-                    // else if (attrs && hasOwn(attrs, key)) {
-                    //     return attrs[key];
-                    // }
+                    
                     const getter = publicProperty[key];
                     if (getter) {
                         return getter(target);
@@ -43,11 +58,13 @@ export const instancePropsProxy = (instance:any) => {
     
                 },
                 set(target:any, key:any, value:any) {
-                    const { state, props } = target;
+                    const { state, props, setupState } = target;
                     if(state && hasOwn(state, key)) {
                         state[key] = value;
                     }else if (props && hasOwn(props, key)) {
-                        // props[key] = value;
+                        props[key] = value;
+                    }else if (setupState && hasOwn(setupState, key)) {
+                        setupState[key] = value;
                     }
     
                     return true
@@ -56,7 +73,7 @@ export const instancePropsProxy = (instance:any) => {
 }
 
 
-export const createComponentInstance = (vnode:any) => {
+export const createComponentInstance = (vnode:any,parentComponent:any) => {
     const instance:any = {
         data: null,
         vnode,
@@ -68,8 +85,8 @@ export const createComponentInstance = (vnode:any) => {
         attrs: {},
         propsOptions: vnode.type.props,
         // emit: () => {},
-        // slots: () => {},
-        // provide: () => {},
+        slots: () => {},
+        provides: parentComponent?parentComponent.provides:Object.create(null),
         // inject: () => {},
         // parent: null,
         proxy: null,
@@ -77,20 +94,66 @@ export const createComponentInstance = (vnode:any) => {
         // refs: {},
         // components: {},
         // ctx: {},
-        render: null    
+        render: null,
+        setup: null,
+        setupState: null,
+        exposed: null,
+        parent: parentComponent
     }
     return instance
 }
 
 export const setupComponent = (instance:any) => {
      initProps(instance, instance.vnode.props);
+     initSlots(instance, instance.vnode.children);
      instancePropsProxy(instance);
 
-     const { data } = instance.vnode.type;
+     const { data, render, setup } = instance.vnode.type;
+
+     if (setup) {
+        const  setupContext = {
+            attrs: instance.attrs,
+            slots: instance.slots,
+            expose: (value:any) => {
+                instance.exposed = value;
+            },
+            emit: (event:any, ...args:any) => {
+                // instance.emit(event, ...args);
+                const handle = instance.vnode.props(event);
+                handle && handle(...args);
+            }
+        }
+        setCurrentInstance(instance);
+        const setupResult = setup(instance.props, setupContext);
+        //  handleSetupResult(instance, setupResult);
+        setCurrentInstance(null);
+        if (isFunction(setupResult)) {
+            instance.render = setupResult;
+        }else {
+            instance.setupState = proxyRefs(setupResult);
+        }
+     }
+
      if (!isFunction(data)) {
          return console.warn("--")
+     }else{
+        instance.setupState = proxyRefs(data.call(instance.proxy));
      }
-     instance.data = reactive(data.call(instance.proxy));
-     instance.render = render;
+
+     if(!instance.render) {
+        instance.render = render;
+     }
+
+    //  instance.data = reactive(data.call(instance.proxy));
+    //  instance.render = render;
 }
 
+
+
+export const getCurrentInstance = () => {
+    return currentInstance;
+}
+
+export const setCurrentInstance = (instance:any) => {
+    currentInstance = instance;
+}

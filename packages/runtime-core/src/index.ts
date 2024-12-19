@@ -1,3 +1,6 @@
 export * from "./createVnode"
 export * from "./h"
 export * from "./renderer"
+export * from "./teleport"
+export * from "./provide"
+export * from "./lifecycle"
